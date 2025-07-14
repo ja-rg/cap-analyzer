@@ -23,7 +23,7 @@ class CaptureAnalyzer:
         end_time = None
         total_packets = 0
 
-        with pyshark.FileCapture(self.file_path, use_json=True, include_raw=False) as capture:
+        with pyshark.FileCapture(self.file_path, include_raw=False) as capture:
             for packet in capture:
                 # Packet time tracking
                 total_packets += 1
@@ -54,9 +54,15 @@ class CaptureAnalyzer:
                     ipv6_addresses.update([packet.ipv6.src, packet.ipv6.dst])
 
                 # External resources
-                if 'dns' in packet and hasattr(packet.dns, 'qry_name'):
-                    domains.add(packet.dns.qry_name)
-                
+                if 'dns' in packet:
+                    dns_layer = packet.dns
+                    for attr in dir(dns_layer):
+                        if attr.startswith('qry_name'):
+                            try:
+                                domains.add(getattr(dns_layer, attr))
+                            except Exception:
+                                print(f"Error accessing {attr} in DNS layer")
+
                 for ip_str in [getattr(packet, 'ip', None), getattr(packet, 'ipv6', None)]:
                     if ip_str:
                         for addr in [getattr(ip_str, 'src', None), getattr(ip_str, 'dst', None)]:
