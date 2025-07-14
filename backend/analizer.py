@@ -2,17 +2,17 @@ import os
 import json
 import socket
 import ipaddress
+from manuf import MacParser
 from collections import defaultdict
-from scapy.all import rdpcap, TCP, UDP, IP
-import pyshark
+from scapy.all import rdpcap, TCP, UDP, IP, IPv6, Ether
+from datetime import datetime
 
 
 class PcapAnalyzer:
-    CARPETA = 'capturas'
 
-    def __init__(self, file_name):
-        self.file_name = file_name
-        self.file_path = f'{PcapAnalyzer.CARPETA}/{file_name}'
+    def __init__(self, file_path):
+        self.file_path = file_path  # full path already
+        self.file_name = os.path.basename(file_path)
         self.info = {
             'file': self.file_name,
             'capture_info': {},
@@ -44,7 +44,8 @@ class PcapAnalyzer:
                 if not payload:
                     continue
 
-                key = self.canonical_stream_key(ip.src, proto.sport, ip.dst, proto.dport)
+                key = self.canonical_stream_key(
+                    ip.src, proto.sport, ip.dst, proto.dport)
 
                 if is_tcp:
                     streams[key].append((proto.seq, payload))
@@ -70,69 +71,124 @@ class PcapAnalyzer:
 
         return results
 
-    def analyze_with_scapy(self):
+    def analyze(self):
         packets = rdpcap(self.file_path)
-        self.info['tcp_streams'] = self.extract_streams(packets, TCP)
-        self.info['udp_streams'] = self.extract_streams(packets, UDP)
-
-    def analyze_with_pyshark(self):
+        total_packets = len(packets)
         protocol_tree = defaultdict(lambda: defaultdict(dict))
         mac_set = set()
         mac_addresses = []
         ip_info_dict = {}
         ipv6_addresses = set()
+
         start_time = None
         end_time = None
-        total_packets = 0
 
-        with pyshark.FileCapture(self.file_path, include_raw=False) as capture:
-            for packet in capture:
-                total_packets += 1
-                sniff_time = packet.sniff_time
-                if not start_time or sniff_time < start_time:
-                    start_time = sniff_time
-                if not end_time or sniff_time > end_time:
-                    end_time = sniff_time
+        tcp_streams = defaultdict(list)
+        udp_streams = defaultdict(list)
 
-                # Protocol analysis
-                current = protocol_tree
-                for layer in packet.layers:
-                    proto = layer.layer_name
-                    current = current.setdefault(proto, {})
-                    current['count'] = current.get('count', 0) + 1
+        for pkt in packets:
+            # Timestamps
+            ts = datetime.fromtimestamp(float(pkt.time))
+            if not start_time or ts < start_time:
+                start_time = ts
+            if not end_time or ts > end_time:
+                end_time = ts
 
-                # MAC addresses
-                if 'eth' in packet:
-                    for mac, resolved in [(packet.eth.src, getattr(packet.eth, 'src_oui_resolved', None)),
-                                          (packet.eth.dst, getattr(packet.eth, 'dst_oui_resolved', None))]:
-                        if mac not in mac_set:
-                            mac_addresses.append(
-                                {'mac': mac, 'resolved': resolved, 'type': 'src' if mac == packet.eth.src else 'dst'})
-                            mac_set.add(mac)
+            # Protocol tree
+            layers = set()
+            if pkt.haslayer(Ether):
+                layers.add("eth")
+            if pkt.haslayer(IP):
+                layers.add("ip")
+            if pkt.haslayer(IPv6):
+                layers.add("ipv6")
+            if pkt.haslayer(TCP):
+                layers.add("tcp")
+            if pkt.haslayer(UDP):
+                layers.add("udp")
+            for proto in layers:
+                current = protocol_tree.setdefault(proto, {})
+                current['count'] = current.get('count', 0) + 1
 
-                # IP & IPv6 addresses
-                for ip_layer in [getattr(packet, 'ip', None), getattr(packet, 'ipv6', None)]:
-                    if ip_layer:
-                        for addr in [getattr(ip_layer, 'src', None), getattr(ip_layer, 'dst', None)]:
-                            if addr and addr not in ip_info_dict:
+            # MAC addresses
+            parser = MacParser()  # Create a MAC-to-vendor parser
+            if pkt.haslayer(Ether):
+                eth = pkt[Ether]
+                for mac, label in [(eth.src, 'src'), (eth.dst, 'dst')]:
+                    if mac not in mac_set:
+                        vendor = parser.get_manuf(mac)  # ← resolve vendor (fabricante)
+                        mac_addresses.append({
+                            'mac': mac,
+                            'resolved': vendor,
+                            'type': label
+                        })
+                        mac_set.add(mac)
+
+            # IP & IPv6 address collection
+            for layer in [pkt.getlayer(IP), pkt.getlayer(IPv6)]:
+                if layer:
+                    for addr in [layer.src, layer.dst]:
+                        if addr and addr not in ip_info_dict:
+                            try:
+                                ip_obj = ipaddress.ip_address(addr)
+                                is_private = ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+                                is_ipv6 = isinstance(
+                                    ip_obj, ipaddress.IPv6Address)
                                 try:
-                                    ip_obj = ipaddress.ip_address(addr)
-                                    is_private = ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
-                                    is_ipv6 = isinstance(ip_obj, ipaddress.IPv6Address)
-                                    try:
-                                        resolved = socket.gethostbyaddr(addr)[0]
-                                    except Exception:
-                                        resolved = None
-                                    ip_info_dict[addr] = {
-                                        'ip': addr,
-                                        'resolved': resolved,
-                                        'is_private': is_private,
-                                        'is_ipv6': is_ipv6
-                                    }
-                                    if is_ipv6:
-                                        ipv6_addresses.add(addr)
-                                except ValueError:
-                                    continue
+                                    resolved = socket.gethostbyaddr(addr)[0]
+                                except Exception:
+                                    resolved = None
+                                ip_info_dict[addr] = {
+                                    'ip': addr,
+                                    'resolved': resolved,
+                                    'is_private': is_private,
+                                    'is_ipv6': is_ipv6
+                                }
+                                if is_ipv6:
+                                    ipv6_addresses.add(addr)
+                            except ValueError:
+                                continue
+
+            # TCP & UDP stream collection
+            if pkt.haslayer(IP) and pkt.haslayer(TCP):
+                ip = pkt[IP]
+                tcp = pkt[TCP]
+                payload = bytes(tcp.payload)
+                if payload:
+                    key = self.canonical_stream_key(
+                        ip.src, tcp.sport, ip.dst, tcp.dport)
+                    tcp_streams[key].append((tcp.seq, payload))
+
+            elif pkt.haslayer(IP) and pkt.haslayer(UDP):
+                ip = pkt[IP]
+                udp = pkt[UDP]
+                payload = bytes(udp.payload)
+                if payload:
+                    key = self.canonical_stream_key(
+                        ip.src, udp.sport, ip.dst, udp.dport)
+                    udp_streams[key].append(payload)
+
+        # Finalize TCP and UDP stream processing
+        def format_streams(streams, is_tcp):
+            results = []
+            for i, (key, frags) in enumerate(streams.items()):
+                if is_tcp:
+                    frags.sort(key=lambda x: x[0])
+                    payloads = [frag[1] for frag in frags]
+                else:
+                    payloads = frags
+                results.append({
+                    "stream_index": i,
+                    "text": self.decode_payload(payloads),
+                    "ip_src": key[0][0],
+                    "sport": key[0][1],
+                    "ip_dst": key[1][0],
+                    "dport": key[1][1]
+                })
+            return results
+
+        self.info['tcp_streams'] = format_streams(tcp_streams, is_tcp=True)
+        self.info['udp_streams'] = format_streams(udp_streams, is_tcp=False)
 
         self.info['capture_info'] = {
             'start_time': start_time.isoformat(),
@@ -146,10 +202,6 @@ class PcapAnalyzer:
             'ip_addresses': list(ip_info_dict.values()),
             'ipv6_addresses': list(ipv6_addresses)
         }
-
-    def run_analysis(self):
-        self.analyze_with_pyshark()
-        self.analyze_with_scapy()
 
     def print_info(self):
         print(json.dumps(self.info, indent=2))
@@ -165,5 +217,5 @@ if __name__ == '__main__':
             continue
 
         analyzer = PcapAnalyzer(archivo)
-        analyzer.run_analysis()
+        analyzer.analyze()
         analyzer.print_info()

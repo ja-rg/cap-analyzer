@@ -1,26 +1,32 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+import tempfile
 import os
-from analyzer import PcapAnalyzer
+from analizer import PcapAnalyzer
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI()
 
-UPLOAD_FOLDER = '../capturas'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    contents = await file.read()
 
-    file = request.files['file']
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as temp:
+        temp.write(contents)
+        temp_path = temp.name
 
-    analyzer = PcapAnalyzer(file.filename)
-    analyzer.run_analysis()
-    return jsonify(analyzer.info)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    try:
+        analyzer = PcapAnalyzer(temp_path)
+        analyzer.analyze()
+        return analyzer.info
+    finally:
+        try:
+            os.remove(temp_path)
+        except Exception as e:
+            print(f"Could not delete temp file: {e}")
