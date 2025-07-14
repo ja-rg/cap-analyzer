@@ -1,41 +1,42 @@
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react"
+import FileUploader from "@/components/FileUploader"
+import CaptureInfo from "@/components/CaptureInfo"
+import ProtocolTree from "@/components/ProtocolTree"
+import DeviceInfo from "@/components/DeviceInfo"
+import TcpStreams from "@/components/TcpStreams"
+import Loader from "@/components/Loader"
 
-function Home() {
-  const [file, setFile] = useState<File | null>(null)
+export default function Home() {
+  const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
 
-  const handleUpload = async () => {
-    if (!file) return
-
+  const handleAnalyze = async (file: File) => {
+    setLoading(true)
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('http://localhost:5000/analyze', {
+    const res = await fetch('http://localhost:8000/analyze', {
       method: 'POST',
       body: formData,
     })
+
     const data = await res.json()
     setResult(data)
+    setLoading(false)
   }
 
   return (
-    <div className="p-4">
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <Button onClick={handleUpload}>Analizar</Button>
-        </CardContent>
-      </Card>
-
-      {result && (
-        <pre className="mt-4 bg-black text-white p-4 rounded-lg overflow-auto max-h-[500px]">
-          {JSON.stringify(result, null, 2)}
-        </pre>
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <FileUploader onUpload={handleAnalyze} />
+      {loading && <Loader />}
+      {!loading && result && (
+        <>
+          <CaptureInfo info={result.capture_info} />
+          <ProtocolTree tree={result.protocols} />
+          <DeviceInfo data={result.device_info} />
+          {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
+        </>
       )}
     </div>
   )
 }
-
-export default Home
