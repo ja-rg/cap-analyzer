@@ -5,6 +5,7 @@ import ProtocolTree from "@/components/ProtocolTree"
 import DeviceInfo from "@/components/DeviceInfo"
 import TcpStreams from "@/components/TcpStreams"
 import Loader from "@/components/Loader"
+import UdpStreams from "@/components/UdpStreams"
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
@@ -35,6 +36,7 @@ export default function Home() {
           <ProtocolTree tree={result.protocols} />
           <DeviceInfo data={result.device_info} />
           {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
+          {result.udp_streams.length > 0 && <UdpStreams streams={result.udp_streams} />}
         </>
       )}
     </div>
