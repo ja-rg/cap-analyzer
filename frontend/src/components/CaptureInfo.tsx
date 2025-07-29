@@ -11,8 +11,8 @@ import { es } from "date-fns/locale"
 
 type CaptureInfoProps = {
     info: {
-        "Earliest packet time": string
-        "Latest packet time": string
+        "First packet time": string
+        "Last packet time": string
         "Capture duration": string
         "Number of packets": number
     }
@@ -31,6 +31,9 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
         return date ? format(parseISO(date), "PPpp", { locale: es }) : "No disponible"
     }
 
+    
+    
+
     return (
         <Card>
             <CardContent className="p-6 space-y-4">
@@ -45,7 +48,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <CalendarClock className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Inicio</div>
-                            <div>{formatDate(info["Earliest packet time"])}</div>
+                            <div>{formatDate(info["First packet time"])}</div>
                         </div>
                     </div>
 
@@ -53,7 +56,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Fin</div>
-                            <div>{formatDate(info["Latest packet time"])}</div>
+                            <div>{formatDate(info["Last packet time"])}</div>
                         </div>
                     </div>
 
