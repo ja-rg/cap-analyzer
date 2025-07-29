@@ -16,7 +16,7 @@ export default function Home() {
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('http://localhost:8000/analyze', {
+    const res = await fetch('http://localhost:3000/', {
       method: 'POST',
       body: formData,
     })
@@ -32,11 +32,11 @@ export default function Home() {
       {loading && <Loader />}
       {!loading && result && (
         <>
-          <CaptureInfo info={result.capture_info} />
-          <ProtocolTree tree={result.protocols} />
-          <DeviceInfo data={result.device_info} />
-          {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
-          {result.udp_streams.length > 0 && <UdpStreams streams={result.udp_streams} />}
+          <CaptureInfo info={result.capinfos} />
+          <ProtocolTree protocols={result.protocol_hierarchy} />
+          <DeviceInfo data={{ ip_addresses: result.ip_host_pairs, mac_addresses: result.mac_addresses }} />
+          {/* {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
+          {result.udp_streams.length > 0 && <UdpStreams streams={result.udp_streams} />} */}
         </>
       )}
     </div>

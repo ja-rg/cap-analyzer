@@ -11,16 +11,25 @@ import { es } from "date-fns/locale"
 
 type CaptureInfoProps = {
     info: {
-        start_time?: string
-        end_time?: string
-        duration?: number
-        total_packets?: number
+        "Earliest packet time": string
+        "Latest packet time": string
+        "Capture duration": string
+        "Number of packets": number
     }
 }
 
 export default function CaptureInfo({ info }: CaptureInfoProps) {
-    const formatDate = (iso?: string) =>
-        iso ? format(parseISO(iso), "PPpp", { locale: es }) : "No disponible"
+    // "11.383317 seconds"
+    const formatDuration = (duration: string) => {
+        const match = duration.match(/(\d+(\.\d+)?)\s*seconds/)
+        return match ? parseFloat(match[1]).toFixed(2) : "N/A"
+    }
+
+    const formatDate = (iso?: string) => {
+        // Format like " 2015-02-23 22:04:07.801709\r"
+        const date = iso?.replace(/\r/g, "").trim()
+        return date ? format(parseISO(date), "PPpp", { locale: es }) : "No disponible"
+    }
 
     return (
         <Card>
@@ -36,7 +45,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <CalendarClock className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Inicio</div>
-                            <div>{formatDate(info.start_time)}</div>
+                            <div>{formatDate(info["Earliest packet time"])}</div>
                         </div>
                     </div>
 
@@ -44,7 +53,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <Clock className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Fin</div>
-                            <div>{formatDate(info.end_time)}</div>
+                            <div>{formatDate(info["Latest packet time"])}</div>
                         </div>
                     </div>
 
@@ -52,7 +61,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <Timer className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Duración</div>
-                            <div>{info.duration?.toFixed(2)} segundos</div>
+                            <div>{formatDuration(info["Capture duration"])} segundos</div>
                         </div>
                     </div>
 
@@ -60,7 +69,7 @@ export default function CaptureInfo({ info }: CaptureInfoProps) {
                         <PackageIcon className="h-5 w-5 text-primary" />
                         <div>
                             <div className="text-xs uppercase font-semibold text-muted-foreground">Total Paquetes</div>
-                            <div>{info.total_packets ?? "N/A"}</div>
+                            <div>{info["Number of packets"] ?? "N/A"}</div>
                         </div>
                     </div>
                 </div>

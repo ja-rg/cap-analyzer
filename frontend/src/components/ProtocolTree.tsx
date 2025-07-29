@@ -1,78 +1,22 @@
-import { useState } from "react"
 import {
   Card,
-  CardContent,
   CardHeader,
-  CardTitle
+  CardTitle,
+  CardContent
 } from "@/components/ui/card"
-import {
-  ChevronDown,
-  ChevronRight,
-  Network
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Network } from "lucide-react"
 
-type ProtocolNode = {
-  count: number
-  children?: Record<string, ProtocolNode>
+type Protocol = {
+  protocol: string
+  frames: number
+  bytes: number
 }
 
 type ProtocolTreeProps = {
-  tree: Record<string, ProtocolNode>
+  protocols: Protocol[]
 }
 
-function TreeNode({
-  name,
-  node,
-  level
-}: {
-  name: string
-  node: ProtocolNode
-  level: number
-}) {
-  const [expanded, setExpanded] = useState(true)
-  const hasChildren = node.children && Object.keys(node.children).length > 0
-
-  return (
-    <div style={{ marginLeft: level * 16 }}>
-      <div className="flex items-center gap-2 mb-1">
-        {hasChildren ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-4 w-4 p-0"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        ) : (
-          <span className="w-4" />
-        )}
-        <span className="text-sm">
-          <span className="font-medium text-foreground">{name}</span>{" "}
-          <span className="text-muted-foreground">({node.count})</span>
-        </span>
-      </div>
-
-      {expanded &&
-        hasChildren &&
-        Object.entries(node.children!).map(([childKey, childNode]) => (
-          <TreeNode
-            key={childKey}
-            name={childKey}
-            node={childNode}
-            level={level + 1}
-          />
-        ))}
-    </div>
-  )
-}
-
-export default function ProtocolTree({ tree }: ProtocolTreeProps) {
+export default function ProtocolTree({ protocols }: ProtocolTreeProps) {
   return (
     <Card>
       <CardHeader className="flex items-center gap-2">
@@ -81,9 +25,17 @@ export default function ProtocolTree({ tree }: ProtocolTreeProps) {
           Jerarquía de Protocolos
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1">
-        {Object.entries(tree).map(([key, node]) => (
-          <TreeNode key={key} name={key} node={node} level={0} />
+      <CardContent className="space-y-2 text-sm">
+        {protocols.map((p, i) => (
+          <div
+            key={i}
+            className="flex justify-between items-center border-b pb-1 last:border-none"
+          >
+            <div className="text-muted-foreground">{p.protocol}</div>
+            <div className="font-mono text-xs text-right text-muted-foreground">
+              {p.frames} frames • {p.bytes.toLocaleString()} bytes
+            </div>
+          </div>
         ))}
       </CardContent>
     </Card>
