@@ -4,19 +4,52 @@ import {
   CardTitle,
   CardContent
 } from "@/components/ui/card"
-import { Network } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { ChevronRight, Network } from "lucide-react"
 
-type Protocol = {
+type ProtocolNode = {
   protocol: string
   frames: number
   bytes: number
+  children: ProtocolNode[]
 }
 
 type ProtocolTreeProps = {
-  protocols: Protocol[]
+  data: ProtocolNode[]
 }
 
-export default function ProtocolTree({ protocols }: ProtocolTreeProps) {
+function ProtocolItem({
+  node,
+  level = 0
+}: {
+  node: ProtocolNode
+  level?: number
+}) {
+  return (
+    <div className={cn("border-l pl-3", level > 0 && "ml-4")}>
+      <div className="flex justify-between items-center py-1">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <ChevronRight
+            className="w-4 h-4 opacity-50"
+          />
+          <span>{node.protocol}</span>
+        </div>
+        <div className="font-mono text-xs text-right text-muted-foreground">
+          {node.frames} frames • {node.bytes.toLocaleString()} bytes
+        </div>
+      </div>
+      {node.children?.length > 0 && (
+        <div className="space-y-1">
+          {node.children.map((child, i) => (
+            <ProtocolItem key={i} node={child} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ProtocolTree({ data }: ProtocolTreeProps) {
   return (
     <Card>
       <CardHeader className="flex items-center gap-2">
@@ -26,16 +59,8 @@ export default function ProtocolTree({ protocols }: ProtocolTreeProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
-        {protocols.map((p, i) => (
-          <div
-            key={i}
-            className="flex justify-between items-center border-b pb-1 last:border-none"
-          >
-            <div className="text-muted-foreground">{p.protocol}</div>
-            <div className="font-mono text-xs text-right text-muted-foreground">
-              {p.frames} frames • {p.bytes.toLocaleString()} bytes
-            </div>
-          </div>
+        {data.map((node, i) => (
+          <ProtocolItem key={i} node={node} />
         ))}
       </CardContent>
     </Card>

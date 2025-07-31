@@ -17,7 +17,7 @@ export default function Home() {
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('http://localhost:3000/', {
+    const res = await fetch('http://200.13.89.91:3000', {
       method: 'POST',
       body: formData,
     })
@@ -34,7 +34,7 @@ export default function Home() {
       {!loading && result && (
         <>
           <CaptureInfo info={result.capinfos} />
-          <ProtocolTree protocols={result.protocol_hierarchy} />
+          <ProtocolTree data={result.protocol_hierarchy} />
           <DeviceInfo data={{ ip_addresses: result.ip_host_pairs, mac_addresses: result.mac_addresses }} />
           <SuricataInfo data={result.suricata} />
 
