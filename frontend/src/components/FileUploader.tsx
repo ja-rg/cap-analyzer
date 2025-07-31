@@ -1,9 +1,7 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { UploadCloud, Loader2, FileText } from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 type FileUploaderProps = {
@@ -15,16 +13,18 @@ export default function FileUploader({ onUpload }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (file: File) => {
     const isValidType =
       file.type === "application/vnd.tcpdump.pcap" ||
       file.name.endsWith(".pcap") ||
       file.name.endsWith(".cap")
-    const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
+    // 50 MB
+    const isValidSize = file.size <= 50 * 1024 * 1024
 
     if (!isValidType) return setError("Tipo de archivo no permitido. Solo .pcap o .cap.")
-    if (!isValidSize) return setError("El archivo es demasiado grande. Máximo 10MB.")
+    if (!isValidSize) return setError("El archivo es demasiado grande. Máximo 50MB.")
 
     setError(null)
     setFile(file)
@@ -42,7 +42,7 @@ export default function FileUploader({ onUpload }: FileUploaderProps) {
     if (!file) return
     setLoading(true)
     onUpload(file)
-    setTimeout(() => setLoading(false), 1200) // Simulación de análisis
+    setTimeout(() => setLoading(false), 1200) // Simulación
   }
 
   return (
@@ -55,12 +55,13 @@ export default function FileUploader({ onUpload }: FileUploaderProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Área de arrastrar */}
+        {/* Área única: Drag & Drop + Click */}
         <div
           className={cn(
             "border border-dashed rounded-md p-6 text-center cursor-pointer transition-colors",
             isDragging ? "border-primary bg-muted" : "hover:border-muted"
           )}
+          onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault()
             setIsDragging(true)
@@ -69,17 +70,13 @@ export default function FileUploader({ onUpload }: FileUploaderProps) {
           onDrop={handleDrop}
         >
           <p className="text-sm text-muted-foreground">
-            Arrastra y suelta un archivo aquí o selecciónalo abajo.
+            Arrastra y suelta un archivo aquí o haz clic para seleccionarlo.
           </p>
-        </div>
-
-        {/* Selector manual */}
-        <div className="space-y-2">
-          <Label htmlFor="file">Seleccionar archivo manualmente</Label>
-          <Input
-            id="file"
+          <input
+            ref={fileInputRef}
             type="file"
             accept=".pcap,.cap"
+            className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
         </div>
