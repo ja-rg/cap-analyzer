@@ -7,7 +7,10 @@ import {
     AlertTriangle,
     CircleAlert,
     Bug,
+    Circle,
+    Info,
 } from "lucide-react"
+import type { JSX } from "react"
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from "recharts"
@@ -85,11 +88,55 @@ export default function SuricataInfo({ data }: SuricataInfoProps) {
                 </div>
 
                 {data.suricata && (
-                    <div className="flex gap-3 items-start">
-                        <Cpu className="h-5 w-5 text-primary mt-1" />
-                        <div>
-                            <div className="text-xs uppercase font-semibold">Versión / Info</div>
-                            <pre className="whitespace-pre-wrap text-xs">{data.suricata.trim()}</pre>
+                    <div className="space-y-2">
+                        <div className="flex gap-2 items-center">
+                            <Cpu className="h-5 w-5 text-primary" />
+                            <div className="text-xs uppercase font-semibold">Suricata — Versión / Info</div>
+                        </div>
+
+                        <div className="border rounded-md bg-muted/30 divide-y">
+                            {data.suricata.trim().split("\n").map((line, i) => {
+                                // Extraemos fecha, tipo y mensaje
+                                const match = line.match(/^([\d/:\s-]+)\s+-\s+<(\w+)> - (.*)$/);
+                                if (!match) {
+                                    return (
+                                        <div key={i} className="p-1 text-xs font-mono text-muted-foreground">
+                                            {line}
+                                        </div>
+                                    );
+                                }
+                                type SuricataLevel = "Notice" | "Info" | "Warning";
+
+                                const [, date, _, message] = match;
+                                const level = match[2] as SuricataLevel; // 👈 ya sabe que es uno de los tres
+
+                                // Colores por nivel
+
+                                const colorMap: Record<SuricataLevel, string> = {
+                                    Notice: "bg-blue-50 border-blue-200 text-blue-800",
+                                    Info: "bg-green-50 border-green-200 text-green-800",
+                                    Warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
+                                };
+                                const iconMap: Record<SuricataLevel, JSX.Element> = {
+                                    Notice: <Info className="h-4 w-4 text-blue-500" />,
+                                    Info: <Circle className="h-4 w-4 text-green-500" />,
+                                    Warning: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
+                                };
+
+
+                                return (
+                                    <div
+                                        key={i}
+                                        className={`flex gap-2 items-start p-2 text-xs font-mono border-l-4 ${colorMap[level] || ""}`}
+                                    >
+                                        {iconMap[level] || <Circle className="h-4 w-4 text-gray-400" />}
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] opacity-70">{date}</span>
+                                            <span>{message}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -130,21 +177,78 @@ export default function SuricataInfo({ data }: SuricataInfoProps) {
                                 </ResponsiveContainer>
                             </div>
 
-                            {Object.entries(alertsByPriority).map(([priority, alerts]) => (
-                                <div key={priority}>
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
-                                        {priority === "1" && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                                        {priority === "2" && <CircleAlert className="h-4 w-4 text-yellow-500" />}
-                                        {priority === "3" && <ShieldAlert className="h-4 w-4 text-muted-foreground" />}
-                                        Prioridad {priority} ({alerts.length} alerta{alerts.length !== 1 ? "s" : ""})
+                            {Object.entries(alertsByPriority).map(([priority, alerts]) => {
+                                const priorityColors = [
+                                    "bg-red-100 text-red-800 border-red-300",
+                                    "bg-yellow-100 text-yellow-800 border-yellow-300",
+                                    "bg-gray-100 text-gray-800 border-gray-300",
+                                ];
+
+                                const priorityIcons = [
+                                    <AlertTriangle className="h-4 w-4 text-red-600" />,
+                                    <CircleAlert className="h-4 w-4 text-yellow-500" />,
+                                    <ShieldAlert className="h-4 w-4 text-gray-500" />,
+                                ];
+
+                                // Función para parsear el mensaje
+                                const parseAlertMessage = (raw: string) => {
+                                    const match = raw.match(/^\[(\d+):(\d+):(\d+)\]\s+(.*)$/);
+                                    if (!match) return { priority: null, sid: null, rev: null, message: raw };
+                                    const [, prio, sid, rev, msg] = match;
+                                    const [family, ...descParts] = msg.split(" ");
+                                    return {
+                                        priority: Number(prio),
+                                        sid,
+                                        rev,
+                                        family,
+                                        description: descParts.join(" "),
+                                        message: msg
+                                    };
+                                };
+                                const idx = Number(priority) - 1
+
+                                return (
+                                    <div key={priority} className="space-y-2">
+                                        {/* Encabezado de prioridad */}
+                                        <div className="flex items-center gap-2 text-sm font-semibold mb-1">
+                                            {priorityIcons[idx]}
+                                            <span>
+                                                Prioridad {priority} ({alerts.length} alerta
+                                                {alerts.length !== 1 ? "s" : ""})
+                                            </span>
+                                        </div>
+
+                                        {/* Lista de alertas */}
+                                        <div className="flex flex-col gap-2">
+                                            {alerts.map((alert, i) => {
+                                                const parsed = parseAlertMessage(alert.message);
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className={`p-2 rounded-md border flex flex-col gap-1 ${priorityColors[idx]}`}
+                                                    >
+                                                        <div className="flex gap-2 flex-wrap items-center">
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/70 border">
+                                                                P{parsed.priority}
+                                                            </span>
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/70 border">
+                                                                SID: {parsed.sid}
+                                                            </span>
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-white/70 border">
+                                                                Rev: {parsed.rev}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs font-medium">
+                                                            <strong>{parsed.family}</strong> — {parsed.description}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                    <ul className="text-xs pl-4 list-disc space-y-1">
-                                        {alerts.map((alert, i) => (
-                                            <li key={i} className="text-muted-foreground">{alert.message}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
+                                );
+                            })}
+
                         </div>
                     </div>
                 )}

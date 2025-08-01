@@ -17,7 +17,7 @@ export default function Home() {
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('http://localhost:3001', {
+    const res = await fetch('http://200.13.89.91:3000', {
       method: 'POST',
       body: formData,
     })
