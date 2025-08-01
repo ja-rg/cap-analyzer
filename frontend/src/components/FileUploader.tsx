@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils"
 
 type FileUploaderProps = {
   onUpload: (file: File) => void
+  loading: boolean
 }
 
-export default function FileUploader({ onUpload }: FileUploaderProps) {
+export default function FileUploader({ onUpload, loading }: FileUploaderProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -40,9 +40,7 @@ export default function FileUploader({ onUpload }: FileUploaderProps) {
 
   const handleUpload = () => {
     if (!file) return
-    setLoading(true)
     onUpload(file)
-    setTimeout(() => setLoading(false), 1200) // Simulación
   }
 
   return (

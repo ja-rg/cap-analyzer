@@ -29,7 +29,7 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <FileUploader onUpload={handleAnalyze} />
+      <FileUploader loading={loading} onUpload={handleAnalyze} />
       {loading && <Loader />}
       {!loading && result && (
         <>
@@ -38,8 +38,8 @@ export default function Home() {
           <DeviceInfo data={{ ip_addresses: result.ip_host_pairs, mac_addresses: result.mac_addresses }} />
           <SuricataInfo data={result.suricata} />
 
-          {/* {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
-          {result.udp_streams.length > 0 && <UdpStreams streams={result.udp_streams} />} */}
+          {result.tcp_streams.length > 0 && <TcpStreams streams={result.tcp_streams} />}
+          {result.udp_streams.length > 0 && <UdpStreams streams={result.udp_streams} />}
         </>
       )}
     </div>

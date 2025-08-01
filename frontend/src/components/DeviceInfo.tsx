@@ -66,12 +66,12 @@ export default function DeviceInfo({ data }: any) {
         </div>
 
         {/* IP */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ipSorted.map((ip, i) => (
             <div
               key={i}
               className={clsx(
-                "p-3 rounded-md border transition flex flex-col gap-1",
+                "p-3 rounded-md border transition flex flex-col gap-1 align-center",
                 ip.type === "private"
                   ? "bg-green-50 border-green-200 hover:bg-green-100"
                   : "bg-blue-50 border-blue-200 hover:bg-blue-100"
@@ -101,7 +101,7 @@ export default function DeviceInfo({ data }: any) {
               {ip.host && (
                 <div
                   className={clsx(
-                    "text-[10px] px-2 py-0.5 rounded border w-fit",
+                    "mt-3 text-[10px] px-2 py-0.5 rounded border w-fit",
                     ip.type === "private"
                       ? "bg-green-100 border-green-300 text-green-800"
                       : "bg-blue-100 border-blue-300 text-blue-800"
