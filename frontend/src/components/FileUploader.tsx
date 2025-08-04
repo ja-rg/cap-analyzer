@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { UploadCloud, Loader2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
+import AlertTypeSelector from "@/components/subcomponent/AlertTypeSelector" // 🔹 Nuevo import
 
 type FileUploaderProps = {
   onUpload: (file: File) => void
   loading: boolean
+  selectedRules: string[]                   // 🔹 Recibe reglas
+  onRulesChange: (rules: string[]) => void // 🔹 Callback
 }
 
-export default function FileUploader({ onUpload, loading }: FileUploaderProps) {
+export default function FileUploader({ onUpload, loading, selectedRules, onRulesChange }: FileUploaderProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,7 +23,6 @@ export default function FileUploader({ onUpload, loading }: FileUploaderProps) {
       file.type === "application/vnd.tcpdump.pcap" ||
       file.name.endsWith(".pcap") ||
       file.name.endsWith(".cap")
-    // 50 MB
     const isValidSize = file.size <= 50 * 1024 * 1024
 
     if (!isValidType) return setError("Tipo de archivo no permitido. Solo .pcap o .cap.")
@@ -40,7 +42,7 @@ export default function FileUploader({ onUpload, loading }: FileUploaderProps) {
 
   const handleUpload = () => {
     if (!file) return
-    onUpload(file)
+    onUpload(file) // 🚀 Ya enviamos reglas desde Home
   }
 
   return (
@@ -53,6 +55,12 @@ export default function FileUploader({ onUpload, loading }: FileUploaderProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* 🔹 Selector de alertas */}
+        <AlertTypeSelector
+          selected={selectedRules}
+          onChange={onRulesChange}
+        />
+
         {/* Área única: Drag & Drop + Click */}
         <div
           className={cn(

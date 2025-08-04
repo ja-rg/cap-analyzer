@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     ShieldAlert,
     FileSearch,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react"
 import type { JSX } from "react"
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid
 } from "recharts"
 
 
@@ -171,7 +172,7 @@ export default function SuricataInfo({ data }: SuricataInfoProps) {
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="priority" label={{ value: "Prioridad", position: "insideBottom", offset: -5 }} />
                                         <YAxis allowDecimals={false} />
-                                        <Tooltip />
+                                        <RechartsTooltip />
                                         <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -255,13 +256,11 @@ export default function SuricataInfo({ data }: SuricataInfoProps) {
 
                 {data.eve && (() => {
                     let events: any[] = []
-
                     try {
-                        events = data.eve
-                            .trim()
-                            .split("\n")
-                            .map((line) => JSON.parse(line))
-                            .filter((e) => e.event_type === "dns")
+                        // Prepend [ and append ] to make it a valid JSON array
+                        events = JSON.parse(`[${data.eve.trim().split("\n").map((line) => line.trim()).join(",")}]`)
+                        // Remove the last
+                        events = events.slice(0, -1)
                     } catch (err) {
                         console.error("Error parsing EVE JSON", err)
                     }
@@ -272,33 +271,53 @@ export default function SuricataInfo({ data }: SuricataInfoProps) {
                         <div className="space-y-4">
                             <div className="flex gap-3 items-center">
                                 <FileSearch className="h-5 w-5 text-primary" />
-                                <h3 className="text-xs uppercase font-semibold">Consultas DNS (Suricata EVE)</h3>
+                                <h3 className="text-xs uppercase font-semibold">Consultas (Suricata EVE)</h3>
                             </div>
-                            <div className="overflow-auto max-h-[300px] border rounded-md">
+                            <div className="relative max-h-[500px] overflow-auto border rounded-lg">
                                 <table className="w-full text-xs text-left border-collapse">
-                                    <thead className="bg-muted text-muted-foreground sticky top-0 z-10">
+                                    <thead className="bg-muted/80 text-muted-foreground sticky top-0 z-10 backdrop-blur-sm">
                                         <tr>
-                                            <th className="px-3 py-2">Timestamp</th>
-                                            <th className="px-3 py-2">Cliente IP</th>
-                                            <th className="px-3 py-2">Dominio</th>
-                                            <th className="px-3 py-2">Tipo</th>
-                                            <th className="px-3 py-2">Protocolo</th>
-                                            <th className="px-3 py-2">Respuesta</th>
+                                            <th className="px-3 py-2 font-medium">Timestamp</th>
+                                            <th className="px-3 py-2 font-medium">Cliente IP</th>
+                                            <th className="px-3 py-2 font-medium">Destino</th>
+                                            <th className="px-3 py-2 font-medium">Protocolo</th>
+                                            <th className="px-3 py-2 font-medium">Detalles</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {events.map((e, i) => (
-                                            <tr key={i} className="border-t">
-                                                <td className="px-3 py-1">{new Date(e.timestamp).toLocaleTimeString()}</td>
-                                                <td className="px-3 py-1">{e.src_ip}</td>
-                                                <td className="px-3 py-1">{e.dns?.rrname}</td>
-                                                <td className="px-3 py-1">{e.dns?.rrtype}</td>
-                                                <td className="px-3 py-1">{e.proto}</td>
-                                                <td className="px-3 py-1">
-                                                    {e.dns?.answers?.map((a: any) => a.rdata).join(", ") || "-"}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {events.map((e, i) => {
+                                            const detailObj = e.dns?.answers || e.http || e.tls || e.alert || e.flow || e.fileinfo || e.smtp || e.ssh || e.ftp || {}
+                                            const detailString = JSON.stringify(detailObj, null, 0)
+
+                                            return (
+                                                <tr
+                                                    key={i}
+                                                    className={`border-t transition-colors ${i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                                                        } hover:bg-muted/50`}
+                                                >
+                                                    <td className="px-3 py-1 whitespace-nowrap">{new Date(e.timestamp).toLocaleTimeString()}</td>
+                                                    <td className="px-3 py-1 whitespace-nowrap font-mono">{e.src_ip}:{e.src_port}</td>
+                                                    <td className="px-3 py-1 whitespace-nowrap font-mono">{e.dest_ip}:{e.dest_port}</td>
+                                                    <td className="px-3 py-1">{e.proto}</td>
+                                                    <td className="px-3 py-1 max-w-[250px]">
+                                                        <TooltipProvider delayDuration={200}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <pre className="truncate text-[10px] font-mono bg-muted/40 p-1 rounded">
+                                                                        {detailString}
+                                                                    </pre>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="max-w-sm">
+                                                                    <pre className="text-[10px] font-mono whitespace-pre-wrap break-words">
+                                                                        {detailString}
+                                                                    </pre>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
