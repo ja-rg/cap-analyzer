@@ -11,13 +11,11 @@ import SuricataInfo from "@/components/SuricataInfo"
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
-  const [selectedRules, setSelectedRules] = useState<string[]>([]) // 🔹 Aquí guardamos las reglas
 
   const handleAnalyze = async (file: File) => {
     setLoading(true)
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('rules', JSON.stringify(selectedRules)) // 🔹 Enviamos reglas seleccionadas
 
     const res = await fetch('http://200.13.89.91:3000', {
       method: 'POST',
@@ -34,8 +32,6 @@ export default function Home() {
       <FileUploader
         loading={loading}
         onUpload={handleAnalyze}
-        selectedRules={selectedRules}        // 🔹 Se pasa al FileUploader
-        onRulesChange={setSelectedRules}     // 🔹 Callback para actualizar reglas
       />
       {loading && <Loader />}
       {!loading && result && (
